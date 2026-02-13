@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PATIENT: MAYSAM_001</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --monitor-bg: #111;
+            --green: #00ff00;
+            --red: #ff3333;
+            --yellow: #ffff00;
+            --blue: #33ccff;
+            --text: #e0e0e0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--green);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* CRT MONITOR EFFECT */
+        .monitor {
+            width: 100%;
+            max-width: 800px;
+            height: 100%;
+            max-height: 900px;
+            background: var(--monitor-bg);
+            border: 2px solid #333;
+            position: relative;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            box-shadow: 0 0 50px rgba(0, 255, 0, 0.1);
+        }
+
+        /* SCANLINE OVERLAY */
+        .monitor::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 100;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* SCREENS */
+        .screen { display: none; height: 100%; flex-direction: column; }
+        .screen.active { display: flex; animation: fadeIn 0.5s; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* HEADER */
+        .header {
+            border-bottom: 2px solid var(--green);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        /* EKG ANIMATION */
+        .ekg-container {
+            height: 100px;
+            width: 100%;
+            background: #000;
+            border: 1px solid #333;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .ekg-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: transparent;
+        }
+
+        .ekg-path {
+            stroke: var(--green);
+            stroke-width: 2;
+            fill: none;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: draw 2s linear infinite;
+        }
+        
+        .flatline {
+            stroke: var(--red);
+            animation: none;
+            stroke-dashoffset: 0;
+        }
+
+        @keyframes draw {
+            to { stroke-dashoffset: 0; }
+        }
+
+        /* LAB RESULTS TABLE */
+        .lab-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+        }
+
+        .lab-table th { text-align: left; color: var(--blue); border-bottom: 1px solid #333; padding: 5px; }
+        .lab-table td { padding: 8px 5px; border-bottom: 1px solid #222; }
+        .critical { color: var(--red); font-weight: bold; animation: blink 1s infinite; }
+
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* BUTTONS */
+        .btn {
+            background: transparent;
+            border: 2px solid var(--green);
+            color: var(--green);
+            padding: 15px;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: auto;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { background: var(--green); color: black; box-shadow: 0 0 20px var(--green); }
+        
+        .btn-red { border-color: var(--red); color: var(--red); }
+        .btn-red:hover { background: var(--red); color: white; box-shadow: 0 0 20px var(--red); }
+
+        /* CPR GAME */
+        .cpr-container {
+            text-align: center;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .shock-btn {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: var(--red);
+            color: white;
+            border: 5px solid white;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            animation: pulse 0.5s infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            box-shadow: 0 0 30px var(--red);
+        }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border: 1px solid white;
+            margin-top: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--green);
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        /* CONSULT NOTE */
+        .consult-note {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-left: 4px solid var(--yellow);
+            margin-bottom: 20px;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        /* SUCCESS SCREEN */
+        .success-content { text-align: center; color: white; }
+        .confetti { position: fixed; width: 10px; height: 10px; background: var(--green); animation: fall 3s linear forwards; z-index: 200; }
+        @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
+
+    </style>
+</head>
+<body>
+
+    <div class="monitor">
+        
+        <div class="header">
+            <div>PATIENT: RHEZA_071425</div>
+            <div id="status-text" style="color: var(--red)">STATUS: UNSTABLE</div>
+            <div id="time">00:00:00</div>
+        </div>
+
+        <div id="screen-1" class="screen active">
+            <div class="ekg-container">
+                <svg width="100%" height="100%" viewBox="0 0 500 100" preserveAspectRatio="none">
+                    <path class="ekg-path" d="M0,50 L50,50 L60,20 L70,80 L80,50 L100,50 L110,20 L120,80 L130,50 L300,50 L310,20 L320,80 L330,50 L500,50" />
+                </svg>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div style="border: 1px solid var(--green); padding: 10px;">
+                    <small>HEART RATE</small>
+                    <div style="font-size: 2rem; color: var(--red);" id="hr-display">165</div>
+                    <small>SINUS TACHYCARDIA (NOT BEING MISSED)</small>
+                </div>
+                <div style="border: 1px solid var(--green); padding: 10px;">
+                    <small>SpO2</small>
+                    <div style="font-size: 2rem; color: var(--yellow);">88%</div>
+                    <small>HYPOXIC (MISSING YOU)</small>
+                </div>
+            </div>
+
+            <div class="consult-note" style="border-color: var(--red);">
+                <strong>TRIAGE NOTE:</strong><br>
+                Patient presenting with acute "Being-Ignored Syndrome."<br>
+                Hemodynamics compromised due to separation anxiety.<br>
+                Immediate intervention required.
+            </div>
+
+            <button class="btn" onclick="goToScreen(2)">[VIEW DIAGNOSTICS]</button>
+        </div>
+
+
+        <div id="screen-2" class="screen">
+            <h3 style="color: var(--blue); border-bottom: 1px solid var(--blue);">CARDIAC PANEL</h3>
+            
+            <table class="lab-table">
+                <tr><th>TEST</th><th>RESULT</th><th>REF RANGE</th></tr>
+                <tr>
+                    <td>Troponin I</td>
+                    <td class="critical">> 50,000 ng/L</td>
+                    <td>< 14</td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="font-size: 0.7rem; color: #888;">
+                        *CRITICAL VALUE*<br>
+                        Mechanism: Catecholamine toxicity from "Not being missed."
+                    </td>
+                </tr>
+                <tr>
+                    <td>LVEF (Function)</td>
+                    <td class="critical">85%</td>
+                    <td>55-70%</td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="font-size: 0.7rem; color: #888;">
+                        *STARLING LAW VIOLATION*<br>
+                        Preload (Desire to meet) > Stroke Volume Capacity (You ignoring me).
+                    </td>
+                </tr>
+                <tr>
+                    <td>QT Interval</td>
+                    <td class="critical">PROLONGED</td>
+                    <td>< 440ms</td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="font-size: 0.7rem; color: #888;">
+                        *RISK OF TORSADES DE POINTES*<br>
+                        (Twisting of the heart due to distance).
+                    </td>
+                </tr>
+            </table>
+
+            <div class="consult-note">
+                <strong>PHYSICS CONSULT NOTE:</strong><br>
+                System exhibiting critical Vascular Resistance (R = Distance).<br>
+                Per Ohm's Law (V = IR), maintaining Flow (Attachment) against high Resistance requires massive Voltage.<br>
+                <strong>Recommendation:</strong> Increase Voltage via Video Call immediately.
+            </div>
+
+            <button class="btn btn-red" onclick="startCodeBlue()">[INITIATE TREATMENT]</button>
+        </div>
+
+
+        <div id="screen-3" class="screen" style="background: rgba(50,0,0,0.5);">
+            <div class="ekg-container">
+                <svg width="100%" height="100%">
+                    <line x1="0" y1="50" x2="100%" y2="50" stroke="red" stroke-width="2" />
+                </svg>
+            </div>
+
+            <h1 style="color: var(--red); text-align: center; font-size: 2rem; animation: blink 0.2s infinite;">CODE BLUE</h1>
+            <p style="text-align: center;">RHYTHM LOST! SYSTEM CRASHING!</p>
+
+            <div class="cpr-container">
+                <div class="shock-btn" onclick="performCPR()" id="shock-btn">SHOCK</div>
+                <p id="cpr-feedback" style="height: 20px; color: var(--yellow);">TAP RAPIDLY!</p>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="cpr-bar"></div>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="screen-4" class="screen">
+            <div class="ekg-container">
+                <svg width="100%" height="100%" viewBox="0 0 500 100" preserveAspectRatio="none">
+                    <path class="ekg-path" d="M0,50 L50,50 L60,20 L70,80 L80,50 L100,50 L110,20 L120,80 L130,50 L300,50 L310,20 L320,80 L330,50 L500,50" />
+                </svg>
+            </div>
+
+            <div class="success-content">
+                <h2 style="color: var(--green);">SINUS RHYTHM RESTORED</h2>
+                
+                <div class="consult-note" style="text-align: left; border-color: var(--green);">
+                    <strong>DISCHARGE SUMMARY:</strong><br>
+                    Patient stabilized. "Valentine Protocol" successfully installed.<br><br>
+                    <strong>Rx (Prescription):</strong><br>
+                    1. Daily Bathroom Vidcalls (you naked obv) (BID)<br>
+                    2. A cheesecake, you're paying (IV Push)<br>
+                    3. 99% of your time daily (Titrate to effect)
+                </div>
+
+                <p style="color: var(--yellow); font-weight: bold;">(Follow-up appointment: "Child-making" discussion.)</p>
+
+                <button class="btn" onclick="alert('Good job, Doctor. Happy Valentines Day. 😏')">SIGN DISCHARGE PAPERS</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // CLOCK
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('time').innerText = now.toLocaleTimeString();
+        }, 1000);
+
+        // RANDOM HR
+        setInterval(() => {
+            const hr = 160 + Math.floor(Math.random() * 10);
+            document.getElementById('hr-display').innerText = hr;
+        }, 2000);
+
+        // NAVIGATION
+        function goToScreen(n) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(`screen-${n}`).classList.add('active');
+        }
+
+        // CODE BLUE LOGIC
+        let cprProgress = 0;
+        const messages = ["CLEAR!", "STAY WITH ME!", "DON'T YOU DIE ON ME!", "PUSH HARDER!", "ALMOST THERE!", "WE'LL MEET AFTER THIS"];
+
+        function startCodeBlue() {
+            goToScreen(3);
+            document.getElementById('status-text').innerText = "STATUS: CODE BLUE";
+            cprProgress = 0;
+            updateCPR();
+        }
+
+        function performCPR() {
+            cprProgress += 10;
+            updateCPR();
+            
+            // Random feedback text
+            const msg = messages[Math.floor(Math.random() * messages.length)];
+            document.getElementById('cpr-feedback').innerText = msg;
+
+            // Animate button
+            const btn = document.getElementById('shock-btn');
+            btn.style.transform = "scale(0.95)";
+            setTimeout(() => btn.style.transform = "scale(1)", 100);
+
+            if (cprProgress >= 100) {
+                setTimeout(savePatient, 500);
+            }
+        }
+
+        function updateCPR() {
+            document.getElementById('cpr-bar').style.width = cprProgress + "%";
+        }
+
+        function savePatient() {
+            document.getElementById('status-text').innerText = "STATUS: STABLE";
+            document.getElementById('status-text').style.color = "var(--green)";
+            goToScreen(4);
+            
+            // Confetti
+            for(let i=0; i<50; i++) {
+                setTimeout(spawnConfetti, i * 50);
+            }
+        }
+
+        function spawnConfetti() {
+            const conf = document.createElement('div');
+            conf.classList.add('confetti');
+            conf.style.left = Math.random() * 100 + 'vw';
+            conf.style.top = -10 + 'px';
+            document.body.appendChild(conf);
+            setTimeout(() => conf.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
